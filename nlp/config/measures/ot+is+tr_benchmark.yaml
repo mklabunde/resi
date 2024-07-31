@@ -1,0 +1,118 @@
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+    - _target_: repsim.measures.utils.normalize_matrix_norm
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.orthogonal_procrustes
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.aligned_cossim
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+    - _target_: repsim.measures.utils.normalize_matrix_norm
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.rsm_norm_diff
+    _partial_: true
+    inner: euclidean
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.normalize_matrix_norm
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.representational_similarity_analysis
+    _partial_: true
+    inner: euclidean
+    outer: spearman
+
+- _target_: repsim.measures.centered_kernel_alignment
+  _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.normalize_matrix_norm
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.distance_correlation
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.jaccard_similarity
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.second_order_cosine_similarity
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+    - _target_: repsim.measures.utils.normalize_matrix_norm
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.magnitude_difference
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.concentricity_difference
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.normalize_matrix_norm
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.uniformity_difference
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.rank_similarity
+    _partial_: true
+
+- _target_: repsim.measures.utils.Pipeline
+  preprocess_funcs:
+    - _target_: repsim.measures.utils.center_columns
+      _partial_: true
+  similarity_func:
+    _target_: repsim.measures.joint_rank_jaccard_similarity
+    _partial_: true
+# - _target_: repsim.measures.imd_score
+#   _partial_: true
+
+# - _target_: repsim.measures.geometry_score
+#   _partial_: true
+
+# - _target_: repsim.measures.pwcca
+#   _partial_: true
+
+# - _target_: repsim.measures.svcca
+#   _partial_: true

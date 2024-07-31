@@ -1,0 +1,18 @@
+
+# This Yaml allows one to merge multiple parquets into a single parquet.
+#   This is useful, as one may want to parallelize e.g. different Architectures or Similarity Measures
+#   In order to speed up similarity calculations.
+#   If one then wants to create the final table, one can merge the parquets into a single parquet.
+#   This parquet can then be used to create the final table when one creates a very general `config yaml` file.
+# -------------------------------- Disclaimer -------------------------------- #
+# This is not the only way to get the final tables though.
+# One could also just merge the `.csv` files that (one can opt to create) when creating comparisons.
+# They contain less dense information than the parquets (parquets have rep to rep comparisons, while csvs have the quality measures of these comparisons).
+
+# Parquets one wants to merge
+parquets_to_merge:
+  - '<PATH_TO_SOME_PARQUET_DIR>/in100_augment_resnet18.parquet'
+  - '<PATH_TO_SOME_PARQUET_DIR>/in100_augment_resnet34.parquet'
+  - '<PATH_TO_SOME_PARQUET_DIR>/in100_augment_resnet101.parquet'
+# New parquet that will be created that one can use to e.g. create the final table.
+output_parquet: '<PATH_TO_SOME_PARQUET_DIR>/in100_augment_all_resnets.parquet'

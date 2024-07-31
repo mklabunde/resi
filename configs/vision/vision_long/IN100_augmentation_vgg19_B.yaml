@@ -1,0 +1,31 @@
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+rerun_nans: false
+experiments:
+- name: Vision Gauss R18 IN100 Experiments
+  type: GroupSeparationExperiment
+  representation_dataset: Gauss_Off_ImageNet100DataModule
+  filter_key_vals:
+    train_dataset:
+    - Gauss_Max_ImageNet100DataModule
+    - Gauss_M_ImageNet100DataModule
+    - Gauss_S_ImageNet100DataModule
+    architecture:
+    - VGG19
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    domain: VISION
+  grouping_keys:
+  - train_dataset
+  separation_keys:
+  - architecture
+raw_results_filename: in100_augment_vgg19_B.parquet
+included_measures:
+- RSMNormDifference
+- DistanceCorrelation

@@ -1,0 +1,44 @@
+excluded_measures:
+- GeometryScore
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+rerun_nans: false
+experiments:
+- name: Vision Output Correlation
+  type: OutputCorrelationExperiment
+  use_acc_comparison: true
+  representation_dataset: ImageNet100
+  filter_key_vals:
+    architecture:
+    - ResNet18
+    train_dataset:
+    - ImageNet100
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    domain: VISION
+  separation_keys:
+  - architecture
+raw_results_filename: in100_output_resnet18.parquet
+table_creation:
+  row_index: similarity_measure
+  columns:
+  - identifier
+  - representation_dataset
+  - functional_similarity_measure
+  - quality_measure
+  - architecture
+  value_key: corr
+  filename: in100_output_resnet18.xlsx
+  save_full_df: true
+  full_df_filename: in100_output_resnet18.csv

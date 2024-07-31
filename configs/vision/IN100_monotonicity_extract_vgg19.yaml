@@ -1,0 +1,43 @@
+included_measures:
+- CKA
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: true
+rerun_nans: false
+experiments:
+- name: Monotonicity Experiment
+  type: MonotonicityExperiment
+  representation_dataset: ImageNet100
+  filter_key_vals:
+    train_dataset:
+    - ImageNet100
+    architecture:
+    - VGG19
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    domain: VISION
+  grouping_keys:
+  - train_dataset
+  separation_keys:
+  - architecture
+raw_results_filename: in100_monotonicity.parquet
+table_creation:
+  save_full_df: true
+  full_df_filename: in100_monotonicity.csv
+  save_aggregated_df: false
+  row_index: similarity_measure
+  columns:
+  - quality_measure
+  - architecture
+  value_key: value
+  filename: in100_monotonicity.csv

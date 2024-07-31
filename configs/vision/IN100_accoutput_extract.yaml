@@ -1,0 +1,52 @@
+# Holds all information needed to run experiments.
+included_measures:
+  - CKA
+threads: 1
+cache_to_disk: True
+cache_to_mem: False
+only_extract_reps: False
+experiments:
+  - name: Vision Output Correlation
+    type: OutputCorrelationExperiment  # Defines the type of experiment class to use
+    representation_dataset: "ImageNet100"
+    use_acc_comparison: False
+    filter_key_vals:  # Only keeps models that have any of the values for the keys.
+      architecture:
+        - ViT_L32
+        - ViT_B32
+        - ResNet18
+        - ResNet34
+        - ResNet101  # ResNet 101 seed 0 is missing currently.
+        - VGG11
+        - VGG19
+      train_dataset:
+        - ImageNet100
+      seed:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
+      domain: VISION
+    separation_keys:  # Creates a separate experiment for each unique value of the key.
+      - architecture
+raw_results_filename: in100_output.parquet # Must end with .parquet. The full results of all comparisons are stored in the results directory with this name
+
+
+table_creation:
+  row_index: similarity_measure  # The key to use as the row index in the table.
+  columns: # The keys to use as columns (can be list[str] or a str)
+    - identifier
+    - representation_dataset
+    - functional_similarity_measure
+    - quality_measure
+    - architecture
+  value_key: corr  # The key specifying the value that fills the table (non-header/index values)
+  filename: in100_output.xlsx  # Can be [.xlsx / .csv / .tex] file extension
+  save_full_df: True
+  full_df_filename: in100_output.csv

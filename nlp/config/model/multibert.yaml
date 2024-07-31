@@ -1,0 +1,8 @@
+name: google/multiberts-seed_${.seed}
+name_human: multibert-${.seed}
+seed: 0
+remove_sos_token: false
+token_pos: 0
+kwargs:
+  tokenizer_name: google/multiberts-seed_${..seed}
+  model_type:

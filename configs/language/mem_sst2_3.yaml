@@ -1,0 +1,47 @@
+# Holds all information needed to run experiments.
+excluded_measures:
+  - GeometryScore
+threads: 1
+cache_to_disk: False
+cache_to_mem: True
+only_extract_reps: False
+rerun_nans: False
+experiments:
+  - name: NLP SST2 Memorization Experiments
+    type: GroupSeparationExperiment # Defines the type of experiment class to use
+    representation_dataset: "sst2_mem_rate0"
+    filter_key_vals: # Only keeps models that have any of the values for the keys.
+      identifier:
+        - RandomLabels_0
+        - RandomLabels_75
+        - RandomLabels_100
+      train_dataset:
+        - "sst2"
+        - "sst2_mem_rate025"
+        - "sst2_mem_rate05"
+        - "sst2_mem_rate075"
+        - "sst2_mem_rate10"
+      seed:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+      domain: NLP
+    grouping_keys: # Separates the trained models by this key into groups for the `GroupSeparationExperiment`.
+      - train_dataset
+    separation_keys: # Creates a separate experiment for each unique value of the key.
+      - architecture
+raw_results_filename: nlp_mem_sst2.parquet # Must end with .parquet. The full results of all comparisons are stored in the results directory with this name
+
+table_creation:
+  save_full_df: True
+  full_df_filename: mem_sst2_3_full.csv
+  # ---
+  save_aggregated_df: True
+  row_index: similarity_measure # The key to use as the row index in the table.
+  columns: # The keys to use as columns (can be list[str] or a str)
+    - quality_measure
+    - architecture
+  value_key: value # The key specifying the value that fills the table (non-header/index values)
+  filename: mem_sst2_3.csv # Can be [.xlsx / .csv / .tex] file extension

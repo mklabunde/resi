@@ -1,0 +1,42 @@
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+excluded_measures:
+- RSMNormDifference
+- IMDScore
+- GeometryScore
+- PWCCA
+experiments:
+- name: Test Augmentation Affinity Cora
+  type: GroupSeparationExperiment
+  representation_dataset: cora
+  filter_key_vals:
+    domain: GRAPHS
+    identifier:
+    - Normal
+    - Augmentation_25
+    - Augmentation_100
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    train_dataset:
+    - cora
+  grouping_keys:
+  - identifier
+  separation_keys:
+  - architecture
+raw_results_filename: demo_augmentation_test_cora.parquet
+table_creation:
+  columns:
+  - quality_measure
+  - architecture
+  value_key: value
+  filename: demo_augmentation_test_cora.csv
+  row_index: similarity_measure
+  save_aggregated_df: true
+  save_full_df: true
+  full_df_filename: demo_augmentation_test_cora_full.csv
+threads: 1

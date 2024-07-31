@@ -1,0 +1,39 @@
+cache_to_disk: false
+cache_to_mem: true
+excluded_measures:
+- GeometryScore
+experiments:
+- filter_key_vals:
+    domain: GRAPHS
+    identifier:
+    - Normal
+    - Augmentation_25
+    - Augmentation_100
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    train_dataset:
+    - ogbn-arxiv
+  grouping_keys:
+  - identifier
+  name: augmentation_test ogbn-arxiv
+  representation_dataset: ogbn-arxiv
+  separation_keys:
+  - architecture
+  type: GroupSeparationExperiment
+only_extract_reps: false
+raw_results_filename: graphs_augmentation_test_ogbn-arxiv.parquet
+table_creation:
+  columns:
+  - quality_measure
+  - architecture
+  filename: graphs_augmentation_test_ogbn-arxiv.csv
+  full_df_filename: graphs_augmentation_test_ogbn-arxiv_full.csv
+  row_index: similarity_measure
+  save_aggregated_df: true
+  save_full_df: true
+  value_key: value
+threads: 1

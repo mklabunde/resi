@@ -1,0 +1,85 @@
+# Defines which similarity measures are used. "included_measures" selects measures, "exluded_measures" deselects them.
+# Only one of them can be defined. If nothing is specified, all measures are used. These parts of the configs use the
+# names of measures as specified in repsim.measures.__init__.ALL_MEASURES
+#
+# Example: only CKA is used (not active) / GeometryScore is exluded
+# ----------------------
+# included_measures:
+#   - CKA
+excluded_measures:
+  - GeometryScore
+
+# General options for experiments.
+cache_to_disk: False      # If True, representations are written to disk, so later reruns of the experiment are faster. Speeds up getting representations to compare.
+cache_to_mem: True        # If True, will try to keep all relevant representations in RAM. Speeds up comparisons. Speeds up getting representations to compare.
+only_extract_reps: False  # If True, will extract representations, but not compare them. Can be used in conjunction with 'cache_to_disk' to extract representations on GPU nodes, which can then later be used for comparison on CPU nodes.
+only_eval: False          # If True, will not compare or extract representations. Instead immediately start the evaluation of the experiment.
+rerun_nans: True          # If True, will reattempt representation comparisons that already exist in the results, but failed with NaN values.
+
+# Define the experiments to be run.
+experiments:
+  - name: Language Shortcut Affinity  # A human-readable identifier. Will be used in logs.
+    type: GroupSeparationExperiment   # Defines the type of experiment class to use. Must be one of "GroupSeparationExperiment", "OutputCorrelationExperiment", "MonotonicityExperiment".
+
+    # If type is 'OutputCorrelationExperiment', then the following option is necessary to correlate representational similarity to differences in accuracy.
+    # use_acc_comparison: True
+
+    # An identifier of the dataset that representations are extracted of. Valid values are:
+    #   - For language: keys in repsim.benchmark.registry.NLP_REPRESENTATION_DATASETS and repsim.benchmark.registry.NLP_TRAIN_DATASETS
+    #   - For graphs: 'ogbn-arxiv', 'cora', 'flickr'
+    #   - For vision: 'ImageNet100' (standard images), 'Gauss_Off_ImageNet100DataModule' (augmentation), 'ColorDot_0_ImageNet100DataModule' (shortcut affinity)
+    # See the existing configs for specific examples.
+    #
+    # Example: SST2 with shortcut rate 0.558.
+    representation_dataset: "sst2_sc_rate0558"
+
+    # Models included in the experiment.
+    # Each key maps to an attribute of models, the values for the key are the allowed values. Selects from the models in repsim.benchmark.registry.ALL_TRAINED_MODELS.
+    # For valid train_dataset keys, check the existing configs.
+    #
+    # Example: select models from the language domain, with seeds between 0 and 4, and trained on the SST2 dataset with varying shortcut rate.
+    filter_key_vals:
+      domain: NLP
+      train_dataset:
+        - "sst2_sc_rate0558"
+        - "sst2_sc_rate0668"
+        - "sst2_sc_rate0779"
+        - "sst2_sc_rate0889"
+        - "sst2_sc_rate10"
+      seed:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+
+    # If type is 'GroupSeparationExperiment', 'grouping_keys' lists model properties that separate models into different groups.
+    #
+    # Example: Each group consists of models trained on the same dataset.
+    grouping_keys:
+      - train_dataset
+
+    # If type is 'GroupSeparationExperiment', multiple runs are done, each only consisting of models with identical model property here given.
+    #
+    # Example: One run per model architecture.
+    separation_keys:
+      - architecture
+
+# All comparisons results are stored in this file under the 'results' subdir of the path given in the "REP_SIM" environment variable if defined.
+# Otherwise as defined in repsim.benchmark.paths.EXPERIMENT_RESULTS_PATH. If the file already exists, new comparisons results will be added.
+# Existing comparisons will be used to speed up the experiment, i.e., they will generally not be recomputed.
+# Must end with .parquet.
+raw_results_filename: results.parquet  # or a file for a specific experiment (recommended when running multiple experiments in parallel to avoid data corruption)
+
+# Options for aggregating evaluation results.
+table_creation:
+  save_full_df: True  # If True, saves a long-form dataframe of results.
+  full_df_filename: nlp_sc_sst2_full.csv  # The name of the file with the long-form dataframe. Overwrites existing file.
+
+  save_aggregated_df: True  # If True, saves an aggregated pivot table of the results. The following keys define how results are aggregated.
+  row_index: similarity_measure # The key to use as the row index in the table.
+  columns: # The keys to use as columns (can be list[str] or a str)
+    - quality_measure
+    - architecture
+  value_key: value # The key specifying the value that fills the table (non-header/index values)
+  filename: nlp_sc_sst2_agg.csv # Can be [.xlsx / .csv / .tex] file extension. Overwrites existing file.

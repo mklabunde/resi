@@ -1,0 +1,34 @@
+# datasets maps to partial strings that occur in setting identifiers.
+# these then map to a list of dataset names (must be in registry), on which models of the setting should be evaluated
+device: "cuda:1"
+
+batch_size: 2048
+results_path: "/root/similaritybench/experiments/models/nlp/eval_results.json"
+
+datasets:
+  RandomLabels:
+    mnli:
+      - mnli_mem_rate0
+    sst2:
+      - sst2_mem_rate0
+  Shortcut:
+    mnli:
+      - mnli_sc_rate0354
+      - mnli_sc_rate1
+    sst2:
+      - sst2_sc_rate0558
+      - sst2_sc_rate10
+  Augmentation:
+    mnli:
+      - mnli_aug_rate0
+      - mnli_aug_rate10
+    sst2:
+      - sst2_aug_rate0
+      - sst2_aug_rate10
+
+splits:
+  mnli:
+    - "validation_matched"
+  sst2:
+    - "train"
+    - "validation"

@@ -1,0 +1,32 @@
+path: glue # huggingface load_dataset argument: path
+name: mnli # huggingface load_dataset argument: name
+split: test_matched
+validation_split: "validation_matched"
+prompt_template: # promptsource template name
+feature_column:
+  - augmented
+target_column: label
+local_path: /root/similaritybench/experiments/datasets/nlp/robustness/mnli_eda_strength05
+
+# Hyperparameters for the finetuning of BERT on this dataset
+finetuning:
+  num_labels: 3
+  trainer:
+    _target_: transformers.Trainer
+    args:
+      _target_: transformers.TrainingArguments
+      output_dir: ${hydra:runtime.output_dir}
+      overwrite_output_dir: true
+      warmup_ratio: 0.1
+      evaluation_strategy: steps
+      eval_steps: 1000
+      save_steps: 1000
+      per_device_train_batch_size: 64
+      per_device_eval_batch_size: 64
+      seed: 123456789
+      num_train_epochs: 10
+      save_total_limit: 2
+      load_best_model_at_end: true
+  eval_dataset:
+    - "validation_matched"
+    - "validation_mismatched"

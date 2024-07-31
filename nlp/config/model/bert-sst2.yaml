@@ -1,0 +1,7 @@
+name: /root/LLM-comparison/outputs/2024-01-31/13-12-49
+name_human: multibert-0-sst2
+remove_sos_token: false
+token_pos: 0
+kwargs:
+  tokenizer_name: google/multiberts-seed_0
+  model_type: sequence-classification

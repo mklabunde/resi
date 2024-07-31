@@ -1,0 +1,13 @@
+defaults:
+  - dataset: sst2
+  - model: multibert
+  - augmentation: none
+  - _self_
+
+output_dir: ${hydra:runtime.output_dir}
+shortcut_rate: 0.0
+shortcut_seed: 0
+
+memorization_rate: 0.0
+memorization_n_new_labels: 5
+memorization_seed: 0

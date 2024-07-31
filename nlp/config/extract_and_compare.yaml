@@ -1,0 +1,9 @@
+defaults:
+  - _self_
+  - model@model1: ???
+  - model@model2: ???
+  - dataset: ???
+  - measures: ???
+  - storage: local
+
+device: "cuda:0"

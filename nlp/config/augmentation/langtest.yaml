@@ -1,0 +1,56 @@
+augment: true
+augmenter: langtest
+# Augmentation based on robustness tests with langtest.org
+output_dir: ${hydra:runtime.output_dir}
+seed: 123
+export_mode: add
+model:
+  model: ${model.name}
+  hub: huggingface
+dataset:
+  train:
+    data_source: ${dataset.name}
+    feature_column: ${dataset.feature_column}
+    target_column: ${dataset.target_column}
+    split: train
+    source: huggingface
+  val:
+    data_source: ${dataset.name}
+    feature_column: ${dataset.feature_column}
+    target_column: ${dataset.target_column}
+    split: ${dataset.finetuning.eval_dataset[0]}
+    source: huggingface
+tests:
+  tests:
+    defaults:
+      min_pass_rate: 1
+      prob: 1
+    robustness:
+      add_abbreviation: {}
+      add_contraction: {}
+      add_punctuation: {}
+      add_slangs: {}
+      add_speech_to_text_typo: {}
+      add_typo: {}
+      american_to_british: {}
+      dyslexia_word_swap: {}
+      lowercase: {}
+      multiple_perturbations:
+        perturbations1:
+          - add_abbreviation
+          - add_contraction
+          - add_punctuation
+          - add_slangs
+          - add_speech_to_text_typo
+          - add_typo
+          - american_to_british
+          - dyslexia_word_swap
+          - number_to_word
+          - strip_all_punctuation
+          - titlecase
+          - lowercase
+          - uppercase
+      number_to_word: {}
+      strip_all_punctuation: {}
+      titlecase: {}
+      uppercase: {}

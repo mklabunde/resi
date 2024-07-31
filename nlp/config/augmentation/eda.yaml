@@ -1,0 +1,6 @@
+augment: true
+augmenter: textattack
+recipe:
+  _target_: textattack.augmentation.recipes.EasyDataAugmenter
+  pct_words_to_swap: 0.5
+  transformations_per_example: 1

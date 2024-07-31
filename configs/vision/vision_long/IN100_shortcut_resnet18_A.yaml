@@ -1,0 +1,31 @@
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+rerun_nans: false
+experiments:
+- name: Vision Short Cut Correlation Experiments
+  type: GroupSeparationExperiment
+  representation_dataset: ColorDot_0_ImageNet100DataModule
+  filter_key_vals:
+    train_dataset:
+    - ColorDot_100_ImageNet100DataModule
+    - ColorDot_75_ImageNet100DataModule
+    - ColorDot_0_ImageNet100DataModule
+    architecture:
+    - ResNet18
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    domain: VISION
+  grouping_keys:
+  - train_dataset
+  separation_keys:
+  - architecture
+raw_results_filename: in100_shortcut_resnet18_A.parquet
+included_measures:
+- CKA
+- RSA
