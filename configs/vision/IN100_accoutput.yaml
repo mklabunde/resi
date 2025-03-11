@@ -1,6 +1,7 @@
 # Holds all information needed to run experiments.
 excluded_measures:
   - GeometryScore
+  - PWCCA
 only_eval: True
 cache_to_disk: True
 experiments:

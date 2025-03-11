@@ -35,6 +35,7 @@ class JSD(FunctionalSimilarityMeasure):
     def __call__(self, output_a: torch.Tensor | npt.NDArray, output_b: torch.Tensor | npt.NDArray) -> Any:
         check_has_two_axes(output_a)
         check_has_two_axes(output_b)
+        output_a, output_b = to_numpy_if_needed(output_a, output_b)
 
         output_a = scipy.special.softmax(output_a, axis=1)
         output_b = scipy.special.softmax(output_b, axis=1)

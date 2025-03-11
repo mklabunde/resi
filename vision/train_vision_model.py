@@ -31,6 +31,14 @@ SHORTCUT_DATAMODULES = [
     ds.Dataset.CDOT0,
 ]
 
+C100_SHORTCUT_DATAMODULES = [
+    ds.Dataset.C100CDOT100,
+    ds.Dataset.C100CDOT75,
+    ds.Dataset.C100CDOT50,
+    ds.Dataset.C100CDOT25,
+    ds.Dataset.C100CDOT0,
+]
+
 IN_SHORTCUT_DATAMODULES = [
     ds.Dataset.INCDOT100,
     ds.Dataset.INCDOT75,
@@ -46,12 +54,27 @@ IN_RANDOMLABEL_DATAMODULES = [
     ds.Dataset.INRLABEL25,
 ]
 
+C100_RANDOMLABEL_DATAMODULES = [
+    ds.Dataset.C100RLABEL100,
+    ds.Dataset.C100RLABEL75,
+    ds.Dataset.C100RLABEL50,
+    ds.Dataset.C100RLABEL25,
+]
+
 AUGMENTATION_DATAMODULES = [
     ds.Dataset.GaussMAX,
     ds.Dataset.GaussL,
     ds.Dataset.GaussM,
     ds.Dataset.GaussS,
     ds.Dataset.GaussOff,
+]
+
+C100_AUGMENTATION_DATAMODULES = [
+    ds.Dataset.C100GaussMAX,
+    ds.Dataset.C100GaussL,
+    ds.Dataset.C100GaussM,
+    ds.Dataset.C100GaussS,
+    ds.Dataset.C100GaussOff,
 ]
 
 IN_AUGMENTATION_DATAMODULES = [
@@ -63,11 +86,11 @@ IN_AUGMENTATION_DATAMODULES = [
 ]
 
 
-def load_model_and_datamodule(model_info: ds.ModelInfo):
+def load_model_and_datamodule(model_info: ds.ModelInfo, is_vit: bool):
     """Load instances of the model and the datamodule from the infos of the info_file."""
-    datamodule = fd.get_datamodule(dataset=model_info.dataset)
+    datamodule = fd.get_datamodule(dataset=model_info.dataset, is_vit=is_vit)
     params = dp.get_default_parameters(model_info.architecture, model_info.dataset)
-    arch_kwargs = dp.get_default_arch_params(model_info.dataset)
+    arch_kwargs = dp.get_default_arch_params(model_info.dataset, is_vit)
     if model_info.info_file_exists():
         loaded_model = load_model_from_info_file(model_info)
     else:
@@ -86,14 +109,18 @@ def train_vision_model(
         setting_identifier=setting_identifier,
     )
 
+    is_vit = False
+    if architecture_name in ["ViT_B32", "ViT_L32"]:
+        is_vit = True
+
     if model_info.finished_training() and not overwrite:
         logger.info("Model already trained, skipping.")
         return  # No need to train the model again if it exists
 
-    loaded_model, datamodule, params, arch_params = load_model_and_datamodule(model_info)
-    if ds.Dataset(train_dataset) in (SHORTCUT_DATAMODULES + IN_SHORTCUT_DATAMODULES):
+    loaded_model, datamodule, params, arch_params = load_model_and_datamodule(model_info, is_vit=is_vit)
+    if ds.Dataset(train_dataset) in (SHORTCUT_DATAMODULES + C100_SHORTCUT_DATAMODULES + IN_SHORTCUT_DATAMODULES):
         lnm_cls = ShortcutLightningModule
-        no_sc_dm, full_sc_dm = fd.get_min_max_shortcut_datamodules(train_dataset)
+        no_sc_dm, full_sc_dm = fd.get_min_max_shortcut_datamodules(train_dataset, is_vit=is_vit)
         trainer_cls = partial(ShortcutTrainer, no_sc_datamodule=no_sc_dm, full_sc_datamodule=full_sc_dm)
     else:
         lnm_cls = BaseLightningModule

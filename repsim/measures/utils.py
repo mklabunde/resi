@@ -110,7 +110,7 @@ class RSMSimilarityMeasure(RepresentationalSimilarityMeasure):
 
 def to_numpy_if_needed(*args: Union[torch.Tensor, npt.NDArray]) -> List[npt.NDArray]:
     def convert(x: Union[torch.Tensor, npt.NDArray]) -> npt.NDArray:
-        return x if isinstance(x, np.ndarray) else x.numpy()
+        return x if isinstance(x, np.ndarray) else x.cpu().numpy()
 
     return list(map(convert, args))
 

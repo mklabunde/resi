@@ -1,10 +1,11 @@
 from copy import deepcopy
-from typing import Any, Tuple
-from matplotlib import pyplot as plt
-from torchvision.datasets import CIFAR10
+from typing import Any
+from typing import Tuple
 
-from vision.data.shortcuts.shortcut_transforms import ColorDotShortcut
+from matplotlib import pyplot as plt
 from PIL import Image
+from torchvision.datasets import CIFAR10
+from vision.data.shortcuts.shortcut_transforms import ColorDotShortcut
 
 
 class ColorDotCIFAR10(CIFAR10):
@@ -75,7 +76,7 @@ if __name__ == "__main__":
     n_samples = 30
     dot_corr = 100
     dot_diam = 5
-    from paths import VISION_DATA_PATH
+    from repsim.benchmark.paths import VISION_DATA_PATH
     import os
     from pathlib import Path
 

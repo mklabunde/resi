@@ -1,22 +1,18 @@
 excluded_measures:
-- GeometryScore
-- IMDScore
-- RSMNormDifference
-- DistanceCorrelation
-- RSA
-- CKA
+  - GeometryScore
+  - PWCCA
 threads: 1
 cache_to_disk: true
 cache_to_mem: false
 only_extract_reps: false
-rerun_nans: false
+rerun_nans: true
 experiments:
 - name: Vision Short Cut Correlation Experiments
   type: GroupSeparationExperiment
   representation_dataset: ImageNet100
   filter_key_vals:
     train_dataset:
-    - RandomLabel_100_IN100_DataModule
+    - RandomLabel_75_IN100_DataModule
     - RandomLabel_50_IN100_DataModule
     - ImageNet100
     architecture:

@@ -1,0 +1,50 @@
+# Holds all information needed to run experiments.
+threads: 1
+cache_to_disk: false
+cache_to_mem: true
+only_extract_reps: false
+only_eval: false
+experiments:
+- name: NLP mnli Correlation Experiments
+  type: OutputCorrelationExperiment   # Defines the type of experiment class to use
+  use_acc_comparison: true
+  representation_dataset: "mnli"
+  filter_key_vals:   # Only keeps models that have any of the values for the keys.
+    identifier:
+    - "Normal"
+    train_dataset:
+    - "mnli"
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    domain: NLP
+    token_pos:
+    - "mean"
+  grouping_keys:   # Separates the trained models by this key into groups for the `GroupSeparationExperiment`.
+  - train_dataset
+  separation_keys:   # Creates a separate experiment for each unique value of the key.
+  - architecture
+raw_results_filename: correlation_nlp_standard_mnli_meanpooled.parquet # Must end with .parquet. The full results of all comparisons are stored in the results directory with this name
+
+table_creation:
+  save_full_df: true
+  full_df_filename: correlation_nlp_standard_mnli_bertAndAlbert_mean.csv
+  # ---
+  save_aggregated_df: false
+  row_index: similarity_measure # The key to use as the row index in the table.
+  columns: # The keys to use as columns (can be list[str] or a str)
+  - quality_measure
+  - architecture
+  value_key: value # The key specifying the value that fills the table (non-header/index values)
+  filename: nlp_standard_mnli.csv # Can be [.xlsx / .csv / .tex] file extension
+rerun_nans: false
+excluded_measures:
+- GeometryScore

@@ -68,6 +68,7 @@ class VIT_B16(AbstractActiViT):
             cache_dir=VISION_MODEL_PATH,
         )
         in_features = self.model.classifier.in_features
+        self.input_resolution = kwargs["input_resolution"]
         self.model.classifier = nn.Linear(in_features, kwargs["n_cls"])
         self.hooks = self.create_hooks()
 
@@ -84,6 +85,7 @@ class VIT_B32(AbstractActiViT):
             cache_dir=VISION_MODEL_PATH,
         )
         in_features = self.model.classifier.in_features
+        self.input_resolution = kwargs["input_resolution"]
         self.model.classifier = nn.Linear(in_features, kwargs["n_cls"])
         self.hooks = self.create_hooks()
 
@@ -100,6 +102,7 @@ class VIT_L16(AbstractActiViT):
             cache_dir=VISION_MODEL_PATH,
         )
         in_features = self.model.classifier.in_features
+        self.input_resolution = kwargs["input_resolution"]
         self.model.classifier = nn.Linear(in_features, kwargs["n_cls"])
         self.hooks = self.create_hooks()
 
@@ -115,6 +118,7 @@ class VIT_L32(AbstractActiViT):
             "google/vit-large-patch32-224-in21k",
             cache_dir=VISION_MODEL_PATH,
         )
+        self.input_resolution = kwargs["input_resolution"]
         in_features = self.model.classifier.in_features
         self.model.classifier = nn.Linear(in_features, kwargs["n_cls"])
         self.hooks = self.create_hooks()

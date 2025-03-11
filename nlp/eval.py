@@ -20,8 +20,10 @@ from repsim.benchmark.registry import all_trained_nlp_models
 from repsim.benchmark.registry import NLP_REPRESENTATION_DATASETS
 from repsim.benchmark.registry import NLP_TRAIN_DATASETS
 from repsim.nlp import DATASETS
+from repsim.nlp import extract_logits
 from repsim.nlp import get_dataset
 from repsim.nlp import get_model
+from repsim.nlp import get_prompt_creator
 from repsim.nlp import get_tokenizer
 from repsim.nlp import ShortcutAdder
 from repsim.utils import NLPDataset
@@ -42,7 +44,7 @@ def match_model_dataset_to_mnli_or_sst2(model: NLPModel) -> str:
         raise ValueError(f"Model must be trained on mnli or sst2, but {model.train_dataset=}")
 
 
-def prepare_dataset(dataset: NLPDataset, splits):
+def prepare_dataset_w_cache(dataset: NLPDataset, splits):
     assert dataset.feature_column is not None
     logger.debug(f"Preparing dataset for {dataset.get_id()}")
 
@@ -81,7 +83,7 @@ def prepare_dataset(dataset: NLPDataset, splits):
     return hf_dataset, tokenizer_kwargs, input_col
 
 
-def prepare_dataset2(dataset: NLPDataset, splits):
+def prepare_dataset_wo_cache(dataset: NLPDataset, splits):
     """Variant without dataset caching"""
 
     assert dataset.feature_column is not None
@@ -119,8 +121,43 @@ def preprocess_dataset_for_evaluator(hf_dataset, tokenizer, input_col: str, has_
     return hf_dataset, "text"
 
 
-@torch.no_grad()
+@torch.inference_mode()
+def evaluate_smollm(
+    model: NLPModel, dataset: NLPDataset, device: str, splits: list[str] = ["train"], batch_size: int = 1
+):
+    with torch.device(device):
+        hf_model = get_model(model.path, model_type="causal-lm")
+        logger.debug(f"Loaded model from {model.path}")
+    tokenizer = get_tokenizer(model.tokenizer_name)
+    hf_dataset = get_dataset(dataset.path, dataset.config, local_path=dataset.local_path)
+    prompt = get_prompt_creator(dataset.path, dataset.config, dataset.feature_column)
+
+    results = {}
+    for split in splits:
+        logits = extract_logits(
+            hf_model,
+            tokenizer,
+            hf_dataset[split],
+            prompt,
+            device,
+            model.model_type,
+        )
+        acc = (logits.argmax(dim=1) == torch.tensor(hf_dataset[split]["label"])).mean(dtype=torch.float).item()
+        results[split] = {"accuracy": acc}
+    return results
+
+
 def evaluate_model(
+    model: NLPModel, dataset: NLPDataset, device: str, splits: list[str] = ["train"], batch_size: int = 1
+):
+    if model.architecture == "smollm2-1.7b":
+        return evaluate_smollm(model, dataset, device, splits, batch_size)
+    else:
+        return evaluate_bertstyle_model(model, dataset, device, splits, batch_size)
+
+
+@torch.no_grad()
+def evaluate_bertstyle_model(
     model: NLPModel, dataset: NLPDataset, device: str, splits: list[str] = ["train"], batch_size: int = 1
 ):
     results = {}
@@ -132,8 +169,7 @@ def evaluate_model(
         hf_model = get_model(model_path=model.path)
         logger.debug("Loaded model")
 
-    # hf_dataset, tokenizer_kwargs, input_col = prepare_dataset(dataset, splits)
-    hf_dataset, tokenizer_kwargs, input_col = prepare_dataset2(dataset, splits)
+    hf_dataset, tokenizer_kwargs, input_col = prepare_dataset_wo_cache(dataset, splits)
     logger.debug("Loaded dataset")
 
     if "mem" in dataset.name:
@@ -145,8 +181,6 @@ def evaluate_model(
         labels = hf_dataset["train"].features["label"].names
     tokenizer = get_tokenizer(tokenizer_name=model.tokenizer_name, **tokenizer_kwargs)
     logger.debug("Loaded tokenizer")
-
-    # hf_dataset, input_col = preprocess_dataset_for_evaluator(hf_dataset, tokenizer, input_col, "mnli" in dataset.name)
 
     max_length = 128  # tokens
     pipe = transformers.pipeline(
@@ -192,19 +226,13 @@ def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     print("Working directory : {}".format(os.getcwd()))
 
-    models = all_trained_nlp_models()
+    models = [model for model in all_trained_nlp_models() if model.token_pos != "mean"]
     all_datasets = NLP_REPRESENTATION_DATASETS | NLP_TRAIN_DATASETS
 
     results = load_results(cfg.results_path)
     logger.debug(f"results loaded with {len(results)} model entries")
 
     for model in tqdm(models):
-
-        # if (model.train_dataset != "sst2_sc_rate0889") or (model.seed != 0):
-        #     continue
-        # if (model.train_dataset == "mnli_mem_rate025") and (model.seed == 3):
-        #     # safetensors_rust.SafetensorError: Error while deserializing header: MetadataIncompleteBuffer
-        #     continue
 
         if model.id not in results:
             results[model.id] = {}
@@ -215,9 +243,16 @@ def main(cfg: DictConfig):
             [model.train_dataset]
             + [dataset for setting in matched_settings for dataset in cfg.datasets[setting][dataset_key]]
         )
-        logger.debug(f"{model}: {datasets_to_eval_on=}")
+        logger.debug(f"{model.id}: {datasets_to_eval_on=}")
 
         for ds_to_eval_on in datasets_to_eval_on:
+            if model.model_type == "causal-lm" and "sft" not in ds_to_eval_on:
+                # Replace standard version of dataset with sft version, e.g., sst2_sc_rate0558 -> sst2_sft_sc_rate0558
+                default_ds_to_eval_on = ds_to_eval_on
+                id_parts = ds_to_eval_on.split("_")
+                ds_to_eval_on = "_".join([id_parts[0], "sft"] + id_parts[1:])
+                logger.debug(f"Replaced {default_ds_to_eval_on} with {ds_to_eval_on} for causal-lm type model.")
+
             if ds_to_eval_on in results[model.id]:
                 logger.info(f"{model.id} already evaluated on {ds_to_eval_on}. Skipping.")
                 continue

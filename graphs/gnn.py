@@ -12,7 +12,6 @@ from graphs.config import SPLIT_IDX_TRAIN_KEY
 from graphs.config import SPLIT_IDX_VAL_KEY
 from torch.nn import functional as func
 from torch_geometric.utils import dropout_edge
-from torch_geometric.utils import to_edge_index
 from torcheval.metrics.functional import multiclass_accuracy
 from tqdm import tqdm
 
@@ -20,6 +19,7 @@ from tqdm import tqdm
 def train_model(
     model,
     data,
+    edge_index,
     split_idx,
     device,
     seed: int,
@@ -39,7 +39,6 @@ def train_model(
     train_idx = split_idx[SPLIT_IDX_TRAIN_KEY].to(device)
     val_idx = split_idx[SPLIT_IDX_VAL_KEY]
 
-    edge_index, _ = to_edge_index(data.adj_t)
     edge_index = edge_index.to(device)
     model.reset_parameters()
 

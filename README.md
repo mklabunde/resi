@@ -1,6 +1,6 @@
 ![ReSiBenchmark](figures/ReSi_benchmark.png)
 # `ReSi`: A Comprehensive Benchmark for Representational Similarity Measures
-The `ReSi` Benchmark provides a unified framework to quantitatively compare a wide array of representational similiarty measures. It comprises 23 similarity measures, comes with 11 different architectures and spans the Vision, Language and Graph domain.
+The `ReSi` Benchmark provides a unified framework to quantitatively compare a wide array of representational similiarty measures. It comprises 24 similarity measures, comes with 14 different architectures and spans the Vision, Language and Graph domain. [[OpenReview]](https://openreview.net/forum?id=PRvdO3nfFi)
 
 In the following we explain:
 1. How to setup the Benchmark
@@ -14,12 +14,12 @@ In the following we explain:
 ### 1.1 Install Repository and Requirements
 ```shell
 # Download the repository
-git clone git@github.com:mklabunde/resi.git
+git clone <REPOSITORY_URL> resi # Redacted for anonymity. You can download the code clicking on "Download Repository" on the top right.
 cd resi
 
 # Create a virtual environment with Python 3.10
 # With Conda ...
-conda create -n ENVNAME python=3.10
+conda create -n ENVNAME python=3.10 cmake  # cmake is required for rtd
 conda active ENVNAME
 # ... or venv
 python -m venv .venv
@@ -48,7 +48,7 @@ This dataset then should be named `Imagenet100` and located in the directory spe
 ### 1.4 Downloading Models
 
 To get all relevant models, you need to download the model files from Zenodo and unpack the zipped files into corresponding subdirectories of `EXPERIMENT_PATH/models`:
-* Language and graphs: https://doi.org/10.5281/zenodo.11565486. Move the content of `models/nlp` and `eval_results.json` inside `nlp_data.zip` into `EXPERIMENT_PATH/models/nlp`. Move the models inside `graph_data.zip` into `EXPERIMENT_PATH/models/graphs`.
+* Language and graphs: https://doi.org/10.5281/zenodo.11565486. Move the content of `models/nlp` inside `nlp_data.zip` into `EXPERIMENT_PATH/models/nlp`. Move the models inside `graph_data.zip` into `EXPERIMENT_PATH/models/graphs`. SmolLM2 models need to be downloaded separately due to their size (414GB in total) from https://console.share.innkube.fim.uni-passau.de/browser/public/resi-benchmark%2F.
 * Vision: Run the script `python vision/download_vision_model.py` to auto-download and extract all the models. Alternatively one can manually download the files from Zenodo ([Part 1](https://zenodo.org/records/11544180)/[Part 2](https://zenodo.org/records/11548523)), extract them, and move them into a directory named `<VISION_MODEL_PATH>/vision_models_simbench/.` (check `paths.py` from earlier for `VISION_DATA_PATH` details).
 
 ### 1.5 Downloading Result Files (Optional)
@@ -56,6 +56,13 @@ To get all relevant models, you need to download the model files from Zenodo and
 The results from all our experiments are stored in a `results.parquet` file, which you can download from [Zenodo](https://doi.org/10.5281/zenodo.11565486).
 You need this file if you want to easily test a new similarity measure and compare it to the existing results.
 Download the file and place it in the `EXPERIMENT_PATH/results/` directory.
+Regarding the datasets, for the
+* Language domain, datasets will be automatically downloaded from huggingface.
+* **Vision domain:** *Downloading the dataset:* you need to manually download the ImageNet100 dataset from [kaggle](https://www.kaggle.com/datasets/ambityga/imagenet100/data?select=Labels.json) due to license restrictions. After downloading, move the zip to the `VISION_DATA_PATH` into a directory named `Imagenet100` ( `VISION_DATA_PATH` should be located in `<EXPERIMENT_PATH>/datasets/vision` if no ENV variables set -- see `repsim/benchmark/paths.py` for details). In this directory extract the folders and move `train.X1-4` into one joint `train` folder and rename the `val.X` folder into `val` resulting in two directories containing 100 class folders and a json, created during extraciton. *Downloading Vision models:* To get all relevant models you run the script `python vision/download_vision_model.py` to auto-download and extract all the models. Alternatively one can manually download the files from zenodo ([Part 1](https://zenodo.org/records/11544180)/[Part 2](https://zenodo.org/records/11548523)), extract them, and move them into a directory named `<VISION_MODEL_PATH>/vision_models_simbench/.` (check `paths.py` from earlier for `VISION_DATA_PATH` details).
+* Graph domain, we chose datasts that are already included in either the `pytorch geometric`or `ogb` packages. Upon extracting representations for the first time, these datasts will be downloaded automatically into the `EXPERIMENT_PATH/datasets/graphs/`subdirectory.
+
+Regarding the models, you need to download the model files from --ZENODO-LINK(S)-- and unpack the zipped files into corresponding subdirectories of ´EXPERIMENT_PATH/models`.
+
 
 ## 2. Running the Benchmark
 

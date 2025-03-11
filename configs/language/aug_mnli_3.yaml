@@ -1,47 +1,51 @@
 # Holds all information needed to run experiments.
-excluded_measures:
-  - GeometryScore
 threads: 1
-cache_to_disk: False
-cache_to_mem: True
-only_extract_reps: False
-rerun_nans: False
+cache_to_disk: false
+cache_to_mem: true
+only_extract_reps: false
+rerun_nans: false
+only_eval: false
 experiments:
-  - name: NLP mnli Augmentation Experiments
-    type: GroupSeparationExperiment # Defines the type of experiment class to use
-    representation_dataset: "mnli_aug_rate0"
-    filter_key_vals: # Only keeps models that have any of the values for the keys.
-      identifier:
-        - Augmentation_0
-        - Augmentation_25
-        - Augmentation_100
-      train_dataset:
-        - "mnli"
-        - "mnli_aug_rate025"
-        - "mnli_aug_rate05"
-        - "mnli_aug_rate075"
-        - "mnli_aug_rate10"
-      seed:
-        - 0
-        - 1
-        - 2
-        - 3
-        - 4
-      domain: NLP
-    grouping_keys: # Separates the trained models by this key into groups for the `GroupSeparationExperiment`.
-      - train_dataset
-    separation_keys: # Creates a separate experiment for each unique value of the key.
-      - architecture
+- name: NLP mnli Augmentation Experiments
+  type: GroupSeparationExperiment   # Defines the type of experiment class to use
+  representation_dataset: "mnli_aug_rate0"
+  filter_key_vals:   # Only keeps models that have any of the values for the keys.
+    identifier:
+    - Augmentation_0
+    - Augmentation_25
+    - Augmentation_100
+    train_dataset:
+    - "mnli"
+    - "mnli_aug_rate025"
+    - "mnli_aug_rate05"
+    - "mnli_aug_rate075"
+    - "mnli_aug_rate10"
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    domain: NLP
+    token_pos:
+    - 0
+    architecture: BERT-L
+  grouping_keys:   # Separates the trained models by this key into groups for the `GroupSeparationExperiment`.
+  - train_dataset
+  separation_keys:   # Creates a separate experiment for each unique value of the key.
+  - architecture
 raw_results_filename: nlp_aug_mnli.parquet # Must end with .parquet. The full results of all comparisons are stored in the results directory with this name
 
 table_creation:
-  save_full_df: True
-  full_df_filename: aug_mnli_3_full.csv
+  save_full_df: true
+  full_df_filename: aug_mnli_bert_cls.csv
   # ---
-  save_aggregated_df: True
+  save_aggregated_df: true
   row_index: similarity_measure # The key to use as the row index in the table.
   columns: # The keys to use as columns (can be list[str] or a str)
-    - quality_measure
-    - architecture
+  - quality_measure
+  - architecture
   value_key: value # The key specifying the value that fills the table (non-header/index values)
   filename: aug_mnli_3.csv # Can be [.xlsx / .csv / .tex] file extension
+excluded_measures:
+- GeometryScore

@@ -1,0 +1,50 @@
+excluded_measures:
+- GeometryScore
+- PWCCA
+# - IMDScore
+# - RSMNormDifference
+# - DistanceCorrelation
+# - RSA
+# - RTD
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+rerun_nans: true
+experiments:
+- name: Vision Output Correlation
+  type: OutputCorrelationExperiment
+  use_acc_comparison: true
+  representation_dataset: CIFAR100
+  filter_key_vals:
+    architecture:
+    - ViT_L32
+    train_dataset:
+    - CIFAR100
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    domain: VISION
+  separation_keys:
+  - architecture
+raw_results_filename: c100_output_vitl32.parquet
+table_creation:
+  row_index: similarity_measure
+  columns:
+  - identifier
+  - representation_dataset
+  - functional_similarity_measure
+  - quality_measure
+  - architecture
+  value_key: corr
+  filename: c100_output_vitl32.xlsx
+  save_full_df: true
+  full_df_filename: c100_output_vitl32.csv

@@ -35,7 +35,8 @@ def get_single_layer_vision_representation_on_demand(
     # ---------- Create the on-demand-callable functions for each layer ---------- #
     """Function providing the representations for a single layer on demand."""
     loaded_model = load_model_from_info_file(model_info, load_ckpt=True)
-    datamodule = fd.get_datamodule(dataset=representation_dataset)
+    is_vit = True if architecture_name in ["ViT_B32", "ViT_L32"] else False
+    datamodule = fd.get_datamodule(dataset=representation_dataset, is_vit=is_vit)
     test_dataloader = datamodule.test_dataloader(batch_size=100)
     res = extract_single_layer_representations(
         layer_id, loaded_model, test_dataloader, None, meta_info=True, remain_spatial=True

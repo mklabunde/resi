@@ -122,7 +122,16 @@ class OutputCorrelationExperiment(AbstractExperiment):
                             }
                         )
                     else:
-                        result = corr_func(repsims, funcsims)
+                        # result = corr_func(repsims, funcsims)
+                        # The pvalues from the correlation functions are only accurate for >500 samples (at least for
+                        # spearman). With 10 models, we only have 45 combinations (samples). Thus we use a permutation
+                        # test to get more accurate pvalues. Downside: much slower.
+
+                        def statistic(repsims):
+                            return corr_func(repsims, funcsims).statistic
+
+                        result = scipy.stats.permutation_test([repsims], statistic, permutation_type="pairings")
+
                         measure_wise_results.append(
                             {
                                 "similarity_measure": repsim_measure.name,

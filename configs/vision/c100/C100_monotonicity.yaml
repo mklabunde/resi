@@ -1,0 +1,49 @@
+# Holds all information needed to run experiments.
+excluded_measures:
+  - GeometryScore
+  - PWCCA
+only_eval: True
+experiments:
+  - name: Monotonicity Experiment
+    type: MonotonicityExperiment # Defines the type of experiment class to use
+    representation_dataset: "CIFAR100"
+    filter_key_vals:  # Only keeps models that have any of the values for the keys.
+      train_dataset:
+        - CIFAR100
+      architecture:
+        - ViT_L32
+        - ViT_B32
+        - ResNet18
+        - ResNet34
+        - ResNet101  # ResNet 101 seed 0 is missing currently.
+        - VGG11
+        - VGG19
+      seed:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 9
+      domain: VISION
+    grouping_keys: # Separates the trained models by this key into groups for the `GroupSeparationExperiment`.
+      - train_dataset
+    separation_keys: # Creates a separate experiment for each unique value of the key.
+      - architecture
+raw_results_filename: vision_monotonicity_paper_final.parquet # Must end with .parquet. The full results of all comparisons are stored in the results directory with this name
+
+table_creation:
+  save_full_df: True
+  full_df_filename: c100_paper_monotonicity.csv
+  # ---
+  save_aggregated_df: True
+  row_index: similarity_measure # The key to use as the row index in the table.
+  columns: # The keys to use as columns (can be list[str] or a str)
+    - quality_measure
+    - architecture
+  value_key: value # The key specifying the value that fills the table (non-header/index values)
+  filename: c100_paper_monotonicity.xlsx # Can be [.xlsx / .csv / .tex] file extension

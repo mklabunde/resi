@@ -1,8 +1,7 @@
 # Holds all information needed to run experiments.
 excluded_measures:
-  - PWCCA
   - GeometryScore
-  - IMDScore
+  - PWCCA
 threads: 1
 cache_to_disk: True
 cache_to_mem: False

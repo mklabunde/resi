@@ -20,10 +20,25 @@ def get_default_parameters(architecture_name: str, dataset: ds.Dataset | str) ->
         ds.Dataset.GaussS,
         ds.Dataset.GaussOff,
         ds.Dataset.RandomLabelC10,
+        ds.Dataset.C100CDOT0,
+        ds.Dataset.C100CDOT25,
+        ds.Dataset.C100CDOT50,
+        ds.Dataset.C100CDOT75,
+        ds.Dataset.C100CDOT100,
+        ds.Dataset.C100GaussMAX,
+        ds.Dataset.C100GaussL,
+        ds.Dataset.C100GaussM,
+        ds.Dataset.C100GaussS,
+        ds.Dataset.C100GaussOff,
+        ds.Dataset.C100RLABEL100,
+        ds.Dataset.C100RLABEL75,
+        ds.Dataset.C100RLABEL50,
+        ds.Dataset.C100RLABEL25,
+        ds.Dataset.CIFAR100,
     ]:
         params = ds.Params(
             architecture_name=architecture_name,
-            num_epochs=200,  # 250,
+            num_epochs=200,
             save_last_checkpoint=True,
             batch_size=128,
             label_smoothing=False,
@@ -120,24 +135,6 @@ def get_default_parameters(architecture_name: str, dataset: ds.Dataset | str) ->
                 dataset=dataset.value,
             )
 
-    elif dataset == ds.Dataset.CIFAR100:
-        params = ds.Params(
-            architecture_name=architecture_name,
-            num_epochs=200,
-            save_last_checkpoint=True,
-            batch_size=128,
-            label_smoothing=False,
-            label_smoothing_val=0.1,
-            cosine_annealing=True,
-            gamma=0.1,
-            learning_rate=0.1,
-            momentum=0.9,
-            nesterov=True,
-            weight_decay=5e-4,
-            split=0,
-            dataset=dataset.value,
-        )
-
     elif dataset == ds.Dataset.SPLITCIFAR100:
         params = ds.Params(
             architecture_name=architecture_name,
@@ -160,7 +157,7 @@ def get_default_parameters(architecture_name: str, dataset: ds.Dataset | str) ->
     return params
 
 
-def get_default_arch_params(dataset: ds.Dataset | str) -> dict:
+def get_default_arch_params(dataset: ds.Dataset | str, is_vit: bool) -> dict:
     if isinstance(dataset, str):
         dataset = ds.Dataset(dataset)
     if dataset in [
@@ -182,6 +179,8 @@ def get_default_arch_params(dataset: ds.Dataset | str) -> dict:
         output_classes = 10
         in_ch = 3
         input_resolution = (32, 32)
+        if is_vit:
+            input_resolution = (224, 224)
         early_downsampling = False
         global_average_pooling = 4
     elif dataset in [
@@ -207,16 +206,36 @@ def get_default_arch_params(dataset: ds.Dataset | str) -> dict:
         input_resolution = (224, 224)
         early_downsampling = True
         global_average_pooling = 5
-    elif dataset == ds.Dataset.CIFAR100:
+    elif dataset in [
+        ds.Dataset.CIFAR100,
+        ds.Dataset.C100CDOT0,
+        ds.Dataset.C100CDOT25,
+        ds.Dataset.C100CDOT50,
+        ds.Dataset.C100CDOT75,
+        ds.Dataset.C100CDOT100,
+        ds.Dataset.C100GaussMAX,
+        ds.Dataset.C100GaussL,
+        ds.Dataset.C100GaussM,
+        ds.Dataset.C100GaussS,
+        ds.Dataset.C100GaussOff,
+        ds.Dataset.C100RLABEL100,
+        ds.Dataset.C100RLABEL75,
+        ds.Dataset.C100RLABEL50,
+        ds.Dataset.C100RLABEL25,
+    ]:
         output_classes = 100
         in_ch = 3
         input_resolution = (32, 32)
+        if is_vit:
+            input_resolution = (224, 224)
         early_downsampling = False
         global_average_pooling = 4
     elif dataset == ds.Dataset.SPLITCIFAR100:
         output_classes = 5  # 20 Splits a 5 Classes
         in_ch = 3
         input_resolution = (32, 32)
+        if is_vit:
+            input_resolution = (224, 224)
         early_downsampling = False
         global_average_pooling = 4
     elif dataset == ds.Dataset.DermaMNIST:

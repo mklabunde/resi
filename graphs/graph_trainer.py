@@ -7,11 +7,14 @@ from pathlib import Path
 from typing import get_args
 from typing import List
 
+import numpy as np
 import pandas as pd
 import torch
 import torch_geometric.datasets
+from graphs import gnn
 from graphs.config import DATASET_LIST
 from graphs.config import DEFAULT_DATASET_LIST
+from graphs.config import DISTANCE_FILE_NAME
 from graphs.config import GNN_DICT
 from graphs.config import GNN_LIST
 from graphs.config import GNN_PARAMS_DICT
@@ -19,6 +22,8 @@ from graphs.config import GNN_PARAMS_N_LAYERS_KEY
 from graphs.config import LAYER_EXPERIMENT_N_LAYERS
 from graphs.config import MAX_TEST_SIZE
 from graphs.config import OPTIMIZER_PARAMS_DICT
+from graphs.config import PGNN_PARAMS_ANCHOR_DIM_KEY
+from graphs.config import PGNN_PARAMS_ANCHOR_NUM_KEY
 from graphs.config import REDDIT_DATASET_NAME
 from graphs.config import SPLIT_IDX_BENCHMARK_TEST_KEY
 from graphs.config import SPLIT_IDX_TEST_KEY
@@ -26,9 +31,9 @@ from graphs.config import SPLIT_IDX_TRAIN_KEY
 from graphs.config import SPLIT_IDX_VAL_KEY
 from graphs.config import TORCH_STATE_DICT_FILE_NAME_SEED
 from graphs.config import TRAIN_LOG_FILE_NAME_SEED
-from graphs.gnn import get_representations
-from graphs.gnn import get_test_output
-from graphs.gnn import train_model
+from graphs.pgnn import train as pgnn
+from graphs.tools import precompute_dist_data
+from graphs.tools import preselect_anchor
 from graphs.tools import shuffle_labels
 from graphs.tools import subsample_torch_index
 from graphs.tools import subsample_torch_mask
@@ -52,11 +57,13 @@ from repsim.benchmark.types_globals import GRAPH_EXPERIMENT_FIVE_GROUPS_DICT
 from repsim.benchmark.types_globals import LABEL_EXPERIMENT_NAME
 from repsim.benchmark.types_globals import LAYER_EXPERIMENT_NAME
 from repsim.benchmark.types_globals import OUTPUT_CORRELATION_EXPERIMENT_NAME
+from repsim.benchmark.types_globals import PGNN_MODEL_NAME
 from repsim.benchmark.types_globals import SETTING_IDENTIFIER
 from repsim.benchmark.types_globals import SHORTCUT_EXPERIMENT_NAME
 from repsim.benchmark.types_globals import SINGLE_SAMPLE_SEED
 from repsim.benchmark.types_globals import STANDARD_SETTING
 from torch_geometric import transforms as t
+from torch_geometric.utils import to_edge_index
 
 
 class GraphTrainer(ABC):
@@ -76,6 +83,7 @@ class GraphTrainer(ABC):
         self.seed = seed
         self.dataset_name: GRAPH_DATASET_TRAINED_ON = dataset_name
         self.data, self.n_classes, self.split_idx = self.get_data(self.dataset_name)
+        self.edge_index = to_edge_index(self.data.adj_t)[0]
         self.models = dict()
 
         if isinstance(device, str):
@@ -85,6 +93,25 @@ class GraphTrainer(ABC):
             self.device = torch.device(dev_str)
 
         self.gnn_params, self.optimizer_params = self._get_gnn_params()
+
+        if self.architecture_type == PGNN_MODEL_NAME:
+            dists_file_path = GRAPHS_DATA_PATH / self.dataset_name / DISTANCE_FILE_NAME
+            if Path(dists_file_path).exists():
+                with open(dists_file_path, "rb") as f:
+                    dists = np.load(f)
+            else:
+                dists = precompute_dist_data(self.edge_index.numpy(), self.data.num_nodes, approximate=0)
+                np.save(dists_file_path, dists)
+
+            self.data.dists = torch.from_numpy(dists).float()
+
+            anchor_dim = preselect_anchor(
+                self.data,
+                layer_num=self.gnn_params[GNN_PARAMS_N_LAYERS_KEY],
+                anchor_num=self.gnn_params[PGNN_PARAMS_ANCHOR_NUM_KEY],
+            )
+
+            self.gnn_params[PGNN_PARAMS_ANCHOR_DIM_KEY] = anchor_dim
 
         model_dataset_path = GRAPHS_MODEL_PATH / self.dataset_name
 
@@ -125,11 +152,13 @@ class GraphTrainer(ABC):
     @staticmethod
     def get_data(dataset_name: GRAPH_DATASET_TRAINED_ON):
 
+        dataset_path = GRAPHS_DATA_PATH / dataset_name
+
         if dataset_name == ARXIV_DATASET_NAME:
             pyg_dataset = PygNodePropPredDataset(
                 name=ARXIV_DATASET_NAME,
                 transform=t.Compose([t.ToUndirected(), t.ToSparseTensor()]),
-                root=GRAPHS_DATA_PATH / ARXIV_DATASET_NAME,
+                root=dataset_path,
             )
 
             split_idx = pyg_dataset.get_idx_split()
@@ -144,7 +173,7 @@ class GraphTrainer(ABC):
 
             if dataset_name == CORA_DATASET_NAME:
                 pyg_dataset = torch_geometric.datasets.Planetoid(
-                    root=GRAPHS_DATA_PATH / dataset_name,
+                    root=dataset_path,
                     name="Cora",
                     transform=t.NormalizeFeatures(),
                 )
@@ -235,17 +264,31 @@ class GraphTrainer(ABC):
         Path(self.setting_paths[setting]).mkdir(parents=True, exist_ok=True)
         save_path = self.setting_paths[setting] / TORCH_STATE_DICT_FILE_NAME_SEED(self.seed)
 
-        train_results, _ = train_model(
-            model=model,
-            data=setting_data,
-            split_idx=self.split_idx,
-            device=self.device,
-            seed=self.seed,
-            optimizer_params=self.optimizer_params,
-            p_drop_edge=p_drop_edge,
-            save_path=save_path,
-            b_test=True,
-        )
+        if self.architecture_type == PGNN_MODEL_NAME:
+
+            train_results, _ = pgnn.train_model(
+                model=model,
+                data=setting_data,
+                split_idx=self.split_idx,
+                device=self.device,
+                seed=self.seed,
+                optimizer_params=self.optimizer_params,
+                save_path=save_path,
+                b_test=True,
+            )
+        else:
+            train_results, _ = gnn.train_model(
+                model=model,
+                data=setting_data,
+                edge_index=self.edge_index,
+                split_idx=self.split_idx,
+                device=self.device,
+                seed=self.seed,
+                optimizer_params=self.optimizer_params,
+                p_drop_edge=p_drop_edge,
+                save_path=save_path,
+                b_test=True,
+            )
 
         if log_results:
             self._log_train_results(train_results, setting)
@@ -255,7 +298,16 @@ class GraphTrainer(ABC):
         model = self._load_model(setting)
         setting_data = self._get_setting_data(setting)
 
-        reps = get_representations(
+        if self.architecture_type == PGNN_MODEL_NAME:
+            return pgnn.get_representations(
+                model=model,
+                data=setting_data,
+                device=self.device,
+                test_idx=self.split_idx[SPLIT_IDX_TEST_KEY],
+                layer_ids=list(range(self.gnn_params["num_layers"] - 1)),
+            )
+
+        reps = gnn.get_representations(
             model=model,
             data=setting_data,
             device=self.device,
@@ -270,7 +322,16 @@ class GraphTrainer(ABC):
         model = self._load_model(setting)
         setting_data = self._get_setting_data(setting)
 
-        return get_test_output(
+        if self.architecture_type == PGNN_MODEL_NAME:
+            return pgnn.get_test_output(
+                model=model,
+                data=setting_data,
+                device=self.device,
+                test_idx=self.split_idx[SPLIT_IDX_BENCHMARK_TEST_KEY],
+                return_accuracy=return_accuracy,
+            )
+
+        return gnn.get_test_output(
             model=model,
             data=setting_data,
             device=self.device,

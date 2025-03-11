@@ -1,3 +1,4 @@
+import warnings
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -91,9 +92,16 @@ def get_dataset(
     local_path: Optional[str] = None,
     data_files: Optional[str | list[str] | dict[str, str] | dict[str, list[str]]] = None,
 ) -> datasets.dataset_dict.DatasetDict:
+    # Huggingface moved SST2 and MNLI to new paths on the hub. Here, we update the old paths to the new paths.
+    if dataset_path == "sst2":
+        dataset_path = "stanfordnlp/sst2"
+    elif dataset_path == "glue":
+        dataset_path = "nyu-mll/glue"
+
     if dataset_path == "csv":
         ds = datasets.load_dataset(dataset_path, data_files=data_files)
     elif local_path or Path(dataset_path).exists():
+        logger.debug(f"Loading dataset locally from {local_path if local_path else dataset_path}")
         ds = datasets.load_from_disk(local_path) if local_path else datasets.load_from_disk(dataset_path)
     else:
         ds = datasets.load_dataset(dataset_path, name)
@@ -107,9 +115,18 @@ def get_tokenizer(
     return transformers.AutoTokenizer.from_pretrained(tokenizer_name, **kwargs)
 
 
-def get_model(model_path: str, model_type: str = "sequence-classification", **kwargs) -> Any:
+def get_model(
+    model_path: str, model_type: Literal["sequence-classification", "causal-lm"] = "sequence-classification", **kwargs
+) -> Any:
+    logger.debug(f"Loading model from {model_path} with {model_type=}")
     if model_type == "sequence-classification":
         model = transformers.AutoModelForSequenceClassification.from_pretrained(
+            model_path,
+            torch_dtype="auto",
+            **kwargs,
+        )
+    elif model_type == "causal-lm":
+        model = transformers.AutoModelForCausalLM.from_pretrained(
             model_path,
             torch_dtype="auto",
             **kwargs,
@@ -124,7 +141,12 @@ def get_prompt_creator(
     dataset_path: str, dataset_config: Optional[str] = None, feature_column: Optional[str] = None
 ) -> Union[Callable[[Dict[str, Any]], str], Callable[[Dict[str, Any]], Tuple[str, str]]]:
     logger.debug(f"Creating prompt creator with {dataset_path=}, {dataset_config=}, {feature_column=}")
-    if dataset_path == "glue" and dataset_config == "mnli":
+    if feature_column == "sft":
+
+        def create_prompt(example: Dict[str, Any]) -> str:
+            return example[feature_column]
+
+    elif dataset_path == "glue" and dataset_config == "mnli":
 
         def create_prompt(example: Dict[str, Any]) -> Tuple[str, str]:  # type:ignore
             return (
@@ -140,7 +162,7 @@ def get_prompt_creator(
     elif Path(dataset_path).exists() and "sst2" in dataset_path:
 
         def create_prompt(example: Dict[str, Any]) -> str:
-            return example["augmented"]
+            return example["augmented" if not feature_column else feature_column]
 
     else:
         raise ValueError(
@@ -150,13 +172,170 @@ def get_prompt_creator(
     return create_prompt
 
 
+def call_sequence_classification_model(
+    model, tokenizer, prompt, device, output_logits: bool = False, output_hidden_states: bool = False
+) -> tuple[torch.Tensor, ...] | torch.Tensor:
+    if output_hidden_states and output_logits:
+        raise ValueError("Cannot set both output_hidden_states and output_logits to True")
+    if not output_hidden_states and not output_logits:
+        raise ValueError("Must set either output_hidden_states or output_logits to True")
+
+    # tokenizer kwargs are BERT specific
+    if isinstance(prompt, tuple):  # this happens for example with MNLI
+        toks = tokenizer(
+            text=prompt[0],
+            text_pair=prompt[1],
+            return_tensors="pt",
+            padding="max_length",
+            max_length=128,
+            truncation=True,
+        )
+    else:  # eg for SST2
+        toks = tokenizer(
+            text=prompt,
+            return_tensors="pt",
+            padding="max_length",
+            max_length=128,
+            truncation=True,
+        )
+    input_ids = toks["input_ids"].to(device)  # type:ignore
+    token_type_ids = toks["token_type_ids"].to(device)  # type:ignore
+    attention_mask = toks["attention_mask"].to(device)  # type:ignore
+    out = model(
+        input_ids=input_ids,
+        token_type_ids=token_type_ids,
+        attention_mask=attention_mask,
+        output_hidden_states=output_hidden_states,
+    )
+
+    if output_hidden_states:
+        out = out.hidden_states  # Tuple with elements shape(1, n_tokens, dim)
+
+        # Removing padding token representations
+        n_tokens = attention_mask.sum()
+        out = tuple((r[:, :n_tokens, :] for r in out))
+
+        assert isinstance(out[0], torch.Tensor)
+        return out
+
+    if output_logits:
+        out = out.logits
+        return out
+
+
+def call_causal_lm_model(
+    model,
+    tokenizer,
+    prompt,
+    device,
+    output_logits: bool = False,
+    output_hidden_states: bool = False,
+    n_classes: int | None = None,
+    skip_last_token: bool = True,
+) -> tuple[torch.Tensor, ...] | torch.Tensor:
+    model_inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    input_ids = model_inputs["input_ids"]
+    attention_mask = model_inputs["attention_mask"]
+    # The SFT feature columns for Smollm include the ground truth answer. The answer is always exactly one token.
+    # If we keep the answer token, we will generate the representation for the prediction of the token after the answer,
+    # which we did not control via training. This would make our experiments incorrect.
+    if skip_last_token:
+        input_ids = input_ids[:, :-1]
+        attention_mask = attention_mask[:, :-1]
+
+    out = model.generate(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        max_new_tokens=1,
+        return_dict_in_generate=True,
+        output_hidden_states=True,
+        output_logits=True,
+        do_sample=False,  # We want deterministic generation
+        temperature=None,
+        top_k=None,
+        top_p=None,
+    )
+    assert (
+        output_hidden_states or output_logits
+    ), "to get model outputs, set `output_hidden_states` or `output_logits` to True"
+    if output_hidden_states:
+        out = out.hidden_states[0]
+
+        # Since we only generate one token, we have no hidden for generated tokens and thus do not need to remove anything
+        assert isinstance(out[0], torch.Tensor)
+        return out
+
+    if output_logits:
+        out = out["logits"][0]  # take logits for only generated token
+        warnings.warn(
+            "Assuming smallLM2 tokenizer to extract relevant logits. Only looking at logits of tokens for answer options"
+        )
+        # warnings.warn("Assuming two answer options ' A' and ' B'")
+        # logger.debug(f"Logits shape: {out.shape}")
+
+        # für sst2 sollte " A" zu label 1 passen, d.h. die Reihenfolge sollte anders sein  -> " B", " A" logits
+        # für mnli sollte " A" (entailment) zu label 0, " B" (contra) to 2, " C" to 1 --> " A", " C", " B"
+
+        options_tok_ids = [
+            330,  # " A"
+            389,  # " B"
+            340,  # " C"
+            422,  # " D"
+            414,  # " E"
+            426,  # " F"
+            452,  # " G"
+            407,  # " H"
+            339,  # " I"
+        ]
+        if n_classes == 2:  # standard sst2
+            options_tok_ids = [
+                389,  # " B"
+                330,  # " A"
+            ]
+        elif n_classes == 7:  # This is the sst2 memorization setting, where we have 5 additional classes
+            options_tok_ids = [
+                389,  # " B"
+                330,  # " A"
+                340,  # " C"
+                422,  # " D"
+                414,  # " E"
+                426,  # " F"
+                452,  # " G"
+            ]
+        elif n_classes == 3:  # standard mnli
+            options_tok_ids = [
+                330,  # " A"
+                340,  # " C"
+                389,  # " B"
+            ]
+        elif n_classes == 8:  # memorization mnli
+            options_tok_ids = [
+                330,  # " A"
+                340,  # " C"
+                389,  # " B"
+                422,  # " D"
+                414,  # " E"
+                426,  # " F"
+                452,  # " G"
+                407,  # " H"
+            ]
+        else:
+            raise ValueError(f"Unexpected number of classes: {n_classes}")
+
+        out = out[:, options_tok_ids[:n_classes]]
+        # logger.debug(f"Logits shape: {out.shape}")
+
+        return out
+
+
 def extract_representations(
     model: Any,
     tokenizer: Union[transformers.PreTrainedTokenizer, transformers.PreTrainedTokenizerFast],
     dataset: datasets.Dataset,
     prompt_creator: Union[Callable[[Dict[str, Any]], str], Callable[[Dict[str, Any]], Tuple[str, str]]],
     device: str,
-    token_pos_to_extract: Optional[int] = None,
+    token_pos_to_extract: Optional[int | Literal["mean"]] = None,
+    model_type: Literal["sequence-classification", "causal-lm"] = "sequence-classification",
 ) -> Sequence[torch.Tensor]:
     all_representations = []
 
@@ -164,43 +343,23 @@ def extract_representations(
     # Representation extraction is not slow enough for me to care.
     prompts = list(map(prompt_creator, dataset))  # type:ignore
     for prompt in tqdm(prompts):
-        # tokenizer kwargs are BERT specific
-        if isinstance(prompt, tuple):  # this happens for example with MNLI
-            toks = tokenizer(
-                text=prompt[0],
-                text_pair=prompt[1],
-                return_tensors="pt",
-                padding="max_length",
-                max_length=128,
-                truncation=True,
-            )
-        else:  # eg for SST2
-            toks = tokenizer(
-                text=prompt,
-                return_tensors="pt",
-                padding="max_length",
-                max_length=128,
-                truncation=True,
-            )
-        input_ids = toks["input_ids"].to(device)  # type:ignore
-        token_type_ids = toks["token_type_ids"].to(device)  # type:ignore
-        attention_mask = toks["attention_mask"].to(device)  # type:ignore
-        out = model(
-            input_ids=input_ids,
-            token_type_ids=token_type_ids,
-            attention_mask=attention_mask,
-            output_hidden_states=True,
-        ).hidden_states  # Tuple with elements shape(1, n_tokens, dim)
-
-        # Removing padding token representations
-        n_tokens = attention_mask.sum()
-        out = tuple((r[:, :n_tokens, :] for r in out))
-
-        assert isinstance(out[0], torch.Tensor)
+        if model_type == "sequence-classification":
+            out = call_sequence_classification_model(model, tokenizer, prompt, device, output_hidden_states=True)
+        elif model_type == "causal-lm":
+            out = call_causal_lm_model(model, tokenizer, prompt, device, output_hidden_states=True)
+        else:
+            raise ValueError(f"Unknown model type: {type(model)}")
 
         # If we dont need the full representation for all tokens, discard unneeded ones.
         if token_pos_to_extract is not None:
-            out = tuple((representations[:, token_pos_to_extract, :].unsqueeze(1) for representations in out))
+            if isinstance(token_pos_to_extract, int):
+                out = tuple((representations[:, token_pos_to_extract, :].unsqueeze(1) for representations in out))
+            elif token_pos_to_extract == "mean":
+                out = tuple((representations.mean(dim=1).unsqueeze(1) for representations in out))
+            else:
+                raise ValueError(
+                    f"Unknown token_pos_to_extract: {token_pos_to_extract}. Must be integer for specific token or 'mean'"
+                )
 
         out = tuple((representations.to("cpu") for representations in out))
         all_representations.append(out)
@@ -210,47 +369,31 @@ def extract_representations(
     return to_ntxd_shape(all_representations)
 
 
-# TODO: this almost a duplicate of extract_representations. Make this easier to maintain
 def extract_logits(
     model: Any,
     tokenizer: Union[transformers.PreTrainedTokenizer, transformers.PreTrainedTokenizerFast],
     dataset: datasets.Dataset,
     prompt_creator: Union[Callable[[Dict[str, Any]], str], Callable[[Dict[str, Any]], Tuple[str, str]]],
     device: str,
+    model_type: Literal["sequence-classification", "causal-lm"] = "sequence-classification",
 ) -> torch.Tensor:
     all_logits = []
 
+    n_classes = len(dataset._info.features["label"].names)
     # Batching would be more efficient. But then we need to remove the padding afterwards etc.
     # Representation extraction is not slow enough for me to care.
     prompts = list(map(prompt_creator, dataset))  # type:ignore
     for prompt in tqdm(prompts):
-        # tokenizer kwargs are BERT specific
-        if isinstance(prompt, tuple):  # this happens for example with MNLI
-            toks = tokenizer(
-                text=prompt[0],
-                text_pair=prompt[1],
-                return_tensors="pt",
-                padding="max_length",
-                max_length=128,
-                truncation=True,
+        if model_type == "sequence-classification":
+            out = call_sequence_classification_model(
+                model, tokenizer, prompt, device, output_logits=True, output_hidden_states=False
             )
-        else:  # eg for SST2
-            toks = tokenizer(
-                text=prompt,
-                return_tensors="pt",
-                padding="max_length",
-                max_length=128,
-                truncation=True,
+        elif model_type == "causal-lm":
+            out = call_causal_lm_model(
+                model, tokenizer, prompt, device, output_logits=True, output_hidden_states=False, n_classes=n_classes
             )
-        input_ids = toks["input_ids"].to(device)  # type:ignore
-        token_type_ids = toks["token_type_ids"].to(device)  # type:ignore
-        attention_mask = toks["attention_mask"].to(device)  # type:ignore
-        out = model(
-            input_ids=input_ids,
-            token_type_ids=token_type_ids,
-            attention_mask=attention_mask,
-            output_hidden_states=False,
-        ).logits
+        else:
+            raise ValueError(f"Unknown model type: {type(model)}")
         all_logits.append(out.to("cpu"))
 
     return torch.cat(all_logits, dim=0)
@@ -273,14 +416,14 @@ def to_ntxd_shape(reps: List[Tuple[torch.Tensor, ...]]) -> Tuple[torch.Tensor, .
 @torch.no_grad()
 def get_representations(
     model_path: str,
-    model_type: Literal["sequence-classification"],
+    model_type: Literal["sequence-classification", "causal-lm"],
     tokenizer_name: str,
     dataset_path: str,
     dataset_config: str | None,
     dataset_local_path: str | None,
     dataset_split: str,
     device: str,
-    token_pos: Optional[int] = None,
+    token_pos: Optional[int | Literal["mean"]] = None,
     shortcut_rate: Optional[float] = None,
     shortcut_seed: Optional[int] = None,
     feature_column: Optional[str] = None,
@@ -305,7 +448,7 @@ def get_representations(
     if dataset is None:
         # This is the first time the dataset gets loaded
         dataset = get_dataset(dataset_path, dataset_config, local_path=dataset_local_path)
-        if shortcut_rate is not None:
+        if shortcut_rate is not None and model_type != "causal-lm":
             assert shortcut_seed is not None
             assert feature_column is not None
             logger.info(f"Adding shortcuts with rate {shortcut_rate} and seed {shortcut_seed}")
@@ -338,6 +481,7 @@ def get_representations(
         prompt_creator,
         device,
         token_pos_to_extract=token_pos,
+        model_type=model_type,
     )
     logger.debug(f"Shape of representations: {[rep.shape for rep in reps]}")
     return reps
@@ -347,7 +491,7 @@ def get_representations(
 @torch.no_grad()
 def get_logits(
     model_path: str,
-    model_type: Literal["sequence-classification"],
+    model_type: Literal["sequence-classification", "causal-lm"],
     tokenizer_name: str,
     dataset_path: str,
     dataset_config: str | None,
@@ -378,7 +522,7 @@ def get_logits(
     if dataset is None:
         # This is the first time the dataset gets loaded
         dataset = get_dataset(dataset_path, dataset_config, local_path=dataset_local_path)
-        if shortcut_rate is not None:
+        if shortcut_rate is not None and model_type != "causal-lm":
             assert shortcut_seed is not None
             assert feature_column is not None
             logger.info(f"Adding shortcuts with rate {shortcut_rate} and seed {shortcut_seed}")
@@ -410,6 +554,7 @@ def get_logits(
         dataset,
         prompt_creator,
         device,
+        model_type=model_type,
     )
     logger.debug(f"Shape of logits: {logits.shape}")
     return logits

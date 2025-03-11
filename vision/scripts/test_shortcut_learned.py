@@ -1,17 +1,18 @@
+from argparse import ArgumentParser
+
 import torch
+from loguru import logger
 from vision.arch.arch_loading import load_model_from_info_file
 from vision.losses.dummy_loss import DummyLoss
 from vision.training.ke_train_modules.base_training_module import BaseLightningModule
 from vision.training.ke_train_modules.shortcut_lightning_module import ShortcutLightningModule
 from vision.training.trainers.base_trainer import BaseTrainer
 from vision.util import data_structs as ds
+from vision.util import default_params as dp
 from vision.util import find_architectures as fa
 from vision.util import find_datamodules as fd
-from vision.util import default_params as dp
 from vision.util.default_parser_args import add_vision_training_params
 from vision.util.file_io import get_vision_model_info
-from loguru import logger
-from argparse import ArgumentParser
 
 SHORTCUT_DATAMODULES = [
     ds.Dataset.CDOT100,
@@ -22,11 +23,11 @@ SHORTCUT_DATAMODULES = [
 ]
 
 
-def load_model_and_datamodule(model_info: ds.ModelInfo, load_ckpt: bool = False):
+def load_model_and_datamodule(model_info: ds.ModelInfo, load_ckpt: bool = False, is_vit: bool = False):
     """Load instances of the model and the datamodule from the infos of the info_file."""
     datamodule = fd.get_datamodule(dataset=model_info.dataset)
     params = dp.get_default_parameters(model_info.architecture, model_info.dataset)
-    arch_kwargs = dp.get_default_arch_params(model_info.dataset)
+    arch_kwargs = dp.get_default_arch_params(model_info.dataset, is_vit)
     if model_info.info_file_exists():
         loaded_model = load_model_from_info_file(model_info, load_ckpt=load_ckpt)
     else:

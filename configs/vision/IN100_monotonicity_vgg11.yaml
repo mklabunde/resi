@@ -1,15 +1,11 @@
 excluded_measures:
-- GeometryScore
-- IMDScore
-- RSMNormDifference
-- DistanceCorrelation
-- RSA
-- CKA
+  - GeometryScore
+  - PWCCA
 threads: 1
 cache_to_disk: true
 cache_to_mem: false
 only_extract_reps: false
-rerun_nans: false
+rerun_nans: true
 experiments:
 - name: Monotonicity Experiment
   type: MonotonicityExperiment

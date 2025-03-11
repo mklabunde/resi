@@ -140,18 +140,41 @@ def aligned_cossim(
 ) -> float:
     R, Rp = flatten(R, Rp, shape=shape)
     R, Rp = to_numpy_if_needed(R, Rp)
+
+    if not np.any(R) or not np.any(Rp):
+        raise ValueError("Aligned cosine similarity is undefined, since one of the inputs only contains zeroes.")
+
     R, Rp = adjust_dimensionality(R, Rp)
     align, _ = scipy.linalg.orthogonal_procrustes(R, Rp)
 
     R_aligned = R @ align
-    sum_cossim = 0
+    sum_cossim = 0.0
+    nan_ct = 0
     for r, rp in zip(R_aligned, Rp):
-        sum_cossim += r.dot(rp) / (np.linalg.norm(r) * np.linalg.norm(rp))
-    return sum_cossim / R.shape[0]
+        if not np.any(r) or not np.any(rp):
+            nan_ct += 1
+        else:
+            sum_cossim += r.dot(rp) / (np.linalg.norm(r) * np.linalg.norm(rp))
+    if nan_ct == R.shape[0]:
+        raise ValueError(
+            "Aligned cosine similarity undefined since full-zero representations occurred in all instances."
+        )
+    elif nan_ct > 0:
+        warnings.warn(
+            f"In {nan_ct} instance(s), full-zero instance representations have been detected, yielding "
+            f"undefined cosine similarity for these. These rows were left out when aggregating cosine "
+            f"similarities."
+        )
+
+    return sum_cossim / (R.shape[0] - nan_ct)
 
 
 def permutation_aligned_cossim(R: Union[torch.Tensor, npt.NDArray], Rp: Union[torch.Tensor, npt.NDArray]) -> float:
     R, Rp = to_numpy_if_needed(R, Rp)
+
+    if not np.any(R) or not np.any(Rp):
+        raise ValueError("Aligned cosine similarity is undefined, since one of the inputs only contains zeroes.")
+
     R, Rp = adjust_dimensionality(R, Rp)
 
     PR, PRp = scipy.optimize.linear_sum_assignment(R.T @ Rp, maximize=True)  # returns column assignments
@@ -159,9 +182,23 @@ def permutation_aligned_cossim(R: Union[torch.Tensor, npt.NDArray], Rp: Union[to
     Rp_aligned = Rp[:, PRp]
 
     sum_cossim = 0
+    nan_ct = 0
     for r, rp in zip(R_aligned, Rp_aligned):
-        sum_cossim += r.dot(rp) / (np.linalg.norm(r) * np.linalg.norm(rp))
-    return sum_cossim / R.shape[0]
+        if not np.any(r) or not np.any(rp):
+            nan_ct += 1
+        else:
+            sum_cossim += r.dot(rp) / (np.linalg.norm(r) * np.linalg.norm(rp))
+    if nan_ct == R.shape[0]:
+        raise ValueError(
+            "Aligned cosine similarity undefined since full-zero representations occurred in all instances."
+        )
+    elif nan_ct > 0:
+        warnings.warn(
+            f"In {nan_ct} instance(s), full-zero instance representations have been detected, yielding "
+            f"undefined cosine similarity for these. These rows were left out when aggregating cosine "
+            f"similarities."
+        )
+    return sum_cossim / (R.shape[0] - nan_ct)
 
 
 class ProcrustesSizeAndShapeDistance(RepresentationalSimilarityMeasure):

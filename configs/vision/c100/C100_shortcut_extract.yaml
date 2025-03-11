@@ -1,0 +1,51 @@
+excluded_measures:
+- PWCCA
+- GeometryScore
+- IMDScore
+- IMDScore
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: true
+rerun_nans: false
+experiments:
+- name: Vision Short Cut C100 Correlation Experiments
+  type: GroupSeparationExperiment
+  representation_dataset: ColorDot_0_C100DataModule
+  filter_key_vals:
+    train_dataset:
+    - ColorDot_100_C100DataModule
+    - ColorDot_75_C100DataModule
+    - ColorDot_50_C100DataModule
+    - ColorDot_25_C100DataModule
+    - ColorDot_0_C100DataModule
+    architecture:
+    - ViT_L32
+    - ViT_B32
+    - ResNet18
+    - ResNet34
+    - ResNet101
+    - VGG11
+    - VGG19
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    domain: VISION
+  grouping_keys:
+  - train_dataset
+  separation_keys:
+  - architecture
+raw_results_filename: c100_shortcut.parquet
+table_creation:
+  save_full_df: true
+  full_df_filename: c100_shortcut.csv
+  save_aggregated_df: false
+  row_index: similarity_measure
+  columns:
+  - quality_measure
+  - architecture
+  value_key: value
+  filename: c100_shortcut.csv

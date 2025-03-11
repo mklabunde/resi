@@ -30,38 +30,55 @@ class CIFAR100DataModule(BaseDataModule):
     #   override wherever the splitting takes place.
     #   Because this is where the KFold and Disjoint DataModule differ!
 
-    def __init__(self, advanced_da: bool):
+    def __init__(self, advanced_da: bool, is_vit: bool = False):
         """ """
         super().__init__()
         self.mean = (0.4914, 0.4822, 0.4465)
         self.std = (0.2023, 0.1994, 0.2010)
         self.image_size = (32, 32)
+        if is_vit:
+            self.image_size = (224, 224)
+            train_trans = [trans.Resize((224, 224))]
+            val_trans = [trans.Resize((224, 224))]
+        else:
+            train_trans = []
+            val_trans = []
+
         if advanced_da:
             self.train_trans = trans.Compose(
-                [
-                    trans.RandomCrop(self.image_size, padding=4, fill=(128, 128, 128)),
-                    trans.RandomHorizontalFlip(),
-                    CIFAR10Policy(),
-                    Cutout(size=16),
-                    trans.ToTensor(),
-                    trans.Normalize(self.mean, self.std),
-                ]
+                (
+                    train_trans  # Optionally add the resize
+                    + [
+                        trans.RandomCrop(self.image_size, padding=4, fill=(128, 128, 128)),
+                        trans.RandomHorizontalFlip(),
+                        CIFAR10Policy(),
+                        Cutout(size=16),
+                        trans.ToTensor(),
+                        trans.Normalize(self.mean, self.std),
+                    ]
+                )
             )
         else:
             self.train_trans = trans.Compose(
+                (
+                    train_trans  # Optionally add the resize
+                    + [
+                        trans.RandomCrop(self.image_size, padding=4, fill=(128, 128, 128)),
+                        trans.RandomHorizontalFlip(),
+                        Cutout(size=16),
+                        trans.ToTensor(),
+                        trans.Normalize(self.mean, self.std),
+                    ]
+                )
+            )
+        self.val_trans = trans.Compose(
+            val_trans
+            + (
                 [
-                    trans.RandomCrop(self.image_size, padding=4, fill=(128, 128, 128)),
-                    trans.RandomHorizontalFlip(),
-                    Cutout(size=16),
                     trans.ToTensor(),
                     trans.Normalize(self.mean, self.std),
                 ]
             )
-        self.val_trans = trans.Compose(
-            [
-                trans.ToTensor(),
-                trans.Normalize(self.mean, self.std),
-            ]
         )
         self.dataset_path = self.prepare_data()
 

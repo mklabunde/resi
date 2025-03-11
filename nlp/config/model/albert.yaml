@@ -1,0 +1,8 @@
+name: albert/albert-base-v2
+name_human: albert-base-v2
+seed: 0  # not used
+remove_sos_token: false
+token_pos: 0
+kwargs:
+  tokenizer_name: albert/albert-base-v2
+  model_type:

@@ -22,19 +22,11 @@ def load_json(filepath: str | Path) -> Any:
     return ret
 
 
-def load_datamodule(source_path) -> BaseDataModule:
-    """
-    Returns an instance of the datamodule that was used in training of the trained model from the path.
-    """
-    oj = load_json(source_path / nc.OUTPUT_TMPLT)
-    dataset = ds.Dataset(oj["dataset"])
-    return get_datamodule(dataset)
-
-
 def load_datamodule_from_info(model_info: ds.ModelInfo) -> BaseDataModule:
     """
     Returns an instance of the datamodule that was used in training of the trained model from the path.
     """
     oj = load_json(model_info.path_output_json)
     dataset = ds.Dataset(oj["dataset"])
-    return get_datamodule(dataset)
+    is_vit = True if model_info.architecture in ["ViT_B32", "ViT_L32"] else False
+    return get_datamodule(dataset, is_vit)

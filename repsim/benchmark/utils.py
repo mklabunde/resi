@@ -32,8 +32,44 @@ class ExperimentStorer:
             pd.read_parquet(self.path_to_store) if os.path.exists(self.path_to_store) else pd.DataFrame()
         )
         self._overwrite_indices: list[str] = []
-        self._sanity_check_parquett()
+        self._old_experiments = self._sanitize_parquett(self._old_experiments)  # Remove duplicate NaNs.
+        self._sanity_check_parquett()  # Check if non-Nan duplicates exist.
         self._new_experiments = pd.DataFrame()
+
+    @staticmethod
+    def _sanitize_parquett(to_sanitize: pd.DataFrame) -> pd.DataFrame:
+        """Receives a DataFrame and removes NaN entries should there be a non-nan entry for the same experiment.
+        Also reduces two NaNs to the last NaN"""
+        indices = to_sanitize.index
+        if len(indices) != len(set(indices)):
+            kept_dataframes = []
+            removal_indices = []
+            uniques, counts = np.unique(to_sanitize.index, return_counts=True)
+            for unique_index, counts in zip(uniques, counts):
+                if counts > 1:
+                    removal_indices.append(unique_index)
+                    subset = to_sanitize[to_sanitize.index == unique_index]
+                    # Remove old NaNs that were replaced by a non-nan value
+                    # if multiple NaNs keep the latest
+                    is_nan = np.isnan(subset["metric_value"])
+
+                    # If at least one of the multiple values is not NaN, discard all NaNs
+                    #   We also just keep the latest non-nan value should multiple values exist for the same measure.
+                    if not all(is_nan):
+                        # We also just keep the latest non-nan value to make indices unique.
+                        last_true = np.argmax(~is_nan)
+                        filtrd = np.zeros_like(is_nan, dtype=bool)
+                        filtrd[last_true] = True
+                        kept_dataframes.append(subset[filtrd])
+                    else:
+                        # Just keep one NaN. Doesn't matter which one.
+                        filtrd = np.zeros_like(is_nan, dtype=bool)
+                        filtrd[-1] = True
+                        kept_dataframes.append(subset[filtrd])
+            deduplicated_df = pd.concat(kept_dataframes)
+            to_sanitize = to_sanitize[~to_sanitize.index.isin(removal_indices)]
+            to_sanitize = pd.concat([to_sanitize, deduplicated_df])
+        return to_sanitize
 
     def _sanity_check_parquett(self) -> None:
         """
@@ -267,6 +303,9 @@ class ExperimentStorer:
             self._overwrite_indices = []
         # Read all the experiments and make sure that we do not overwrite any existing ones.
         all_experiments = pd.concat([latest_experiment_results, self._new_experiments], ignore_index=False)
+        # If we creates new non-nan results for prior NaNs, we remove the NaNs.
+        #   If we created another NaN, we replace the older NaN with the newer NaN.
+        all_experiments = self._sanitize_parquett(all_experiments)
         all_experiments.to_parquet(self.path_to_store)
         self._new_experiments = pd.DataFrame()  # Empty the new experiments or duplicates will be written.
         self._old_experiments = pd.read_parquet(self.path_to_store)  # Refresh the available data

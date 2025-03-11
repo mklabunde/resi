@@ -46,8 +46,10 @@ def _filter_models(
         for key, val in filter_key_vals.items():
             if not matches:
                 break  #
-            model_attr_val = getattr(model, key)
-            if isinstance(val, Sequence):
+            model_attr_val = getattr(model, key, None)
+            if model_attr_val is None:
+                matches = False
+            elif isinstance(val, Sequence):
                 if model_attr_val not in val:
                     matches = False
             else:

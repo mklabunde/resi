@@ -1,4 +1,5 @@
 /.venv
+/.llmenv
 /.vscode
 /multirun
 /outputs
@@ -8,6 +9,7 @@
 /.cache
 /runs
 /figs
+/smollm
 
 build/
 nlp/multirun
@@ -17,6 +19,8 @@ nlp/saved_test_configurations
 
 graphs/data*
 graphs/output*
+graphs/notebooks/*.tex
+graphs/notebooks/*.pdf
 
 jobs*
 
@@ -38,9 +42,15 @@ __pycache__/*
 *build
 ._.DS_Store
 .DS_Store
-experiments
 vision/data/shortcuts/example_imgs
 vision/_train_submit_to_cluster.py
+
+experiments/*
+experiments/paper_results/*/parquet
+!experiments/paper_results/*.csv
+
+tables/*
+figures/*
 
 manual_data_introspection
 *_pac_api.py

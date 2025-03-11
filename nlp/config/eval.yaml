@@ -14,7 +14,7 @@ datasets:
   Shortcut:
     mnli:
       - mnli_sc_rate0354
-      - mnli_sc_rate1
+      - mnli_sc_rate10
     sst2:
       - sst2_sc_rate0558
       - sst2_sc_rate10
@@ -30,5 +30,5 @@ splits:
   mnli:
     - "validation_matched"
   sst2:
-    - "train"
+    # - "train"
     - "validation"

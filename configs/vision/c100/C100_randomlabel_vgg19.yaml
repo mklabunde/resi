@@ -1,0 +1,45 @@
+excluded_measures:
+- GeometryScore
+- PWCCA
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+rerun_nans: true
+experiments:
+- name: Vision Short Cut Correlation Experiments
+  type: GroupSeparationExperiment
+  representation_dataset: CIFAR100
+  filter_key_vals:
+    train_dataset:
+    # - RandomLabel_100_C100_DataModule
+    - RandomLabel_75_C100_DataModule
+    - RandomLabel_50_C100_DataModule
+    # - RandomLabel_25_C100_DataModule
+    - CIFAR100
+    architecture:
+    - VGG19
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    domain: VISION
+  grouping_keys:
+  - train_dataset
+  separation_keys:
+  - architecture
+raw_results_filename: C100_randomlabel_vgg19.parquet
+table_creation:
+  save_full_df: true
+  full_df_filename: C100_randomlabel_vgg19.csv
+  save_aggregated_df: true
+  row_index: similarity_measure
+  columns:
+  - identifier
+  - representation_dataset
+  - quality_measure
+  - architecture
+  value_key: value
+  filename: C100_randomlabel_vgg19.xlsx

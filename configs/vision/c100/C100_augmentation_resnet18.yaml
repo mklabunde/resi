@@ -1,0 +1,50 @@
+excluded_measures:
+- GeometryScore
+- PWCCA
+# - IMDScore
+# - RSMNormDifference
+# - DistanceCorrelation
+# - RSA
+# - CKA
+threads: 1
+cache_to_disk: true
+cache_to_mem: false
+only_extract_reps: false
+rerun_nans: true
+experiments:
+- name: Vision Gauss R18 C100 Experiments
+  type: GroupSeparationExperiment
+  representation_dataset: Gauss_Off_CIFAR100DataModule
+  filter_key_vals:
+    train_dataset:
+    - Gauss_Max_CIFAR100DataModule
+    # - Gauss_L_CIFAR100DataModule
+    - Gauss_M_CIFAR100DataModule
+    - Gauss_S_CIFAR100DataModule
+    # - Gauss_Off_CIFAR100DataModule
+    architecture:
+    - ResNet18
+    seed:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    domain: VISION
+  grouping_keys:
+  - train_dataset
+  separation_keys:
+  - architecture
+raw_results_filename: c100_augment_r18.parquet
+table_creation:
+  save_full_df: true
+  full_df_filename: c100_augment_r18.csv
+  save_aggregated_df: false
+  row_index: similarity_measure
+  columns:
+  - identifier
+  - representation_dataset
+  - quality_measure
+  - architecture
+  value_key: value
+  filename: c100_augment_r18.xlsx

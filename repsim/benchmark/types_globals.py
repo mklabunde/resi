@@ -11,15 +11,20 @@ GRAPH_DOMAIN: DOMAIN_TYPE = "GRAPHS"
 
 # ----------------------------- All Architectures ---------------------------- #
 VISION_ARCHITECTURE_TYPE = Literal["ResNet18", "ResNet34", "ResNet101", "VGG11", "VGG19", "ViT_B32", "ViT_L32"]
-NLP_ARCHITECTURE_TYPE = Literal["BERT-L", "BERT-Base"]
-GRAPH_ARCHITECTURE_TYPE = Literal["GCN", "GAT", "GraphSAGE"]
+NLP_ARCHITECTURE_TYPE = Literal["BERT-L", "BERT-Base", "albert-base-v2", "smollm2-1.7b"]
+GRAPH_ARCHITECTURE_TYPE = Literal["GCN", "GAT", "GraphSAGE", "PGNN"]
+
+GCN_MODEL_NAME: GRAPH_ARCHITECTURE_TYPE = "GCN"
+GRAPHSAGE_MODEL_NAME: GRAPH_ARCHITECTURE_TYPE = "GraphSAGE"
+GAT_MODEL_NAME: GRAPH_ARCHITECTURE_TYPE = "GAT"
+PGNN_MODEL_NAME: GRAPH_ARCHITECTURE_TYPE = "PGNN"
 
 NN_ARCHITECTURE_TYPE = VISION_ARCHITECTURE_TYPE | NLP_ARCHITECTURE_TYPE | GRAPH_ARCHITECTURE_TYPE
 
 BENCHMARK_NN_ARCHITECTURES = (
     list(get_args(VISION_ARCHITECTURE_TYPE))
     + list(get_args(NLP_ARCHITECTURE_TYPE))
-    + list(get_args(GRAPH_ARCHITECTURE_TYPE))
+    + list(get_args(GRAPH_ARCHITECTURE_TYPE))[:3]
 )
 
 # ----------------------------- Datasets trained on ---------------------------- #
